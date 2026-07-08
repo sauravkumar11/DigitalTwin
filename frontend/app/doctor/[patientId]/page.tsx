@@ -14,7 +14,6 @@ import {
   type OrganOverview,
   type OrganInsight,
 } from "@/lib/api";
-import OrganPanel from "@/components/OrganPanel";
 import DoctorSummary from "@/components/doctor/DoctorSummary";
 import QuickStats from "@/components/doctor/QuickStats";
 import ClinicalAI from "@/components/doctor/ClinicalAI";
@@ -110,6 +109,10 @@ export default function PatientDetailPage() {
               organs={organs}
               selectedOrgan={selected}
               onSelectOrgan={handleSelectOrgan}
+              onDeselect={() => {
+                setSelected(null);
+                setInsight(null);
+              }}
             />
 
           </div>
@@ -132,16 +135,6 @@ export default function PatientDetailPage() {
           </div>
 
         </div>
-
-          <div className="mt-6">
-
-            <OrganPanel
-              insight={insight}
-              loading={insightLoading}
-            />
-
-
-          </div>
           <div className="mt-6">
 
             <TrendCharts />

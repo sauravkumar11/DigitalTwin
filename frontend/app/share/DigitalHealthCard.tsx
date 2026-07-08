@@ -5,8 +5,8 @@ import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  open?: boolean;
+  onClose?: () => void;
   patientId: string;
   name: string;
   age: number;
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function DigitalHealthCardModal({
-  open,
+  open = true,
   onClose,
   patientId,
   name,

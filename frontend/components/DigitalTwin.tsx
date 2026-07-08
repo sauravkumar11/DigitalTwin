@@ -3,27 +3,32 @@
 import { Suspense, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { ContactShadows, Html, useGLTF, useProgress } from "@react-three/drei";
-import type * as THREE from "three";
 import type { OrganOverview } from "@/lib/api";
 import { ORGAN_LABELS, isKnownOrgan, type OrganKey } from "@/lib/organMeshMap";
-import AnatomyModel, { type OrganMeshGroup } from "./anatomy/AnatomyModel";
+import { organs as ORGAN_CONFIGS } from "@/lib/organs";
+import CompositeAnatomyModel, { type CompositeSceneInfo } from "./anatomy/CompositeAnatomyModel";
 import CameraRig, { type CameraRigHandle } from "./anatomy/CameraRig";
 import { AnatomyErrorBoundary } from "./anatomy/AnatomyErrorBoundary";
 
 /**
- * Drop a real anatomical GLB (Z-Anatomy export, BodyParts3D, a licensed
- * Sketchfab anatomy pack, etc.) at this exact path and the viewer below
- * loads it automatically - no code changes required. See
- * frontend/public/models/README.md for naming/export guidance.
+ * The single unified "human-body.glb" asset was checked (binary glTF
+ * inspection) and turned out to be one fused, unnamed mesh - there is
+ * nothing in it to click-map to individual organs. Instead this viewer
+ * assembles the body from the separate per-organ GLBs already present in
+ * public/models (configured in lib/organs.ts), where each whole file is
+ * one pickable organ - no mesh-name guessing required. If a real
+ * separable whole-body model becomes available later, swap this back for
+ * <AnatomyModel url="/models/human-body.glb" .../> (still available,
+ * unchanged, in components/anatomy/AnatomyModel.tsx).
  */
-const MODEL_URL = "/models/human-body.glb";
-
-try {
-  useGLTF.preload(MODEL_URL);
-} catch {
-  // Preload is a best-effort perf optimization; a missing file here is
-  // handled properly later by AnatomyErrorBoundary when the model mounts.
-}
+ORGAN_CONFIGS.forEach((cfg) => {
+  try {
+    useGLTF.preload(cfg.model);
+  } catch {
+    // Preload is a best-effort perf optimization; a missing file is
+    // handled properly later by AnatomyErrorBoundary when it mounts.
+  }
+});
 
 const RISK_LEGEND: Array<{ color: string; label: string }> = [
   { color: "#22c55e", label: "Healthy" },
@@ -49,9 +54,10 @@ function ModelMissingFallback() {
       <div className="max-w-[240px] rounded-xl border border-white/10 bg-black/75 p-4 text-center text-xs text-slate-200 backdrop-blur">
         <p className="mb-1.5 font-semibold text-twin-accent">Anatomy model not loaded</p>
         <p className="text-slate-300">
-          Add a GLB file at{" "}
-          <code className="rounded bg-white/10 px-1 py-0.5 text-[11px]">public/models/human-body.glb</code> to
-          enable the 3D viewer. No other changes are needed - it loads automatically.
+          One or more organ files are missing from{" "}
+          <code className="rounded bg-white/10 px-1 py-0.5 text-[11px]">public/models/</code>. Check{" "}
+          <code className="rounded bg-white/10 px-1 py-0.5 text-[11px]">lib/organs.ts</code> against the files on
+          disk.
         </p>
       </div>
     </Html>
@@ -80,22 +86,21 @@ function ToolbarButton({
   );
 }
 
-interface SceneInfo {
-  center: THREE.Vector3;
-  radius: number;
-  organGroups: Map<OrganKey, OrganMeshGroup>;
-}
+type SceneInfo = CompositeSceneInfo;
 
 export default function DigitalTwin({
   sex = "male",
   organs,
   selectedOrgan,
   onSelectOrgan,
+  onDeselect,
 }: {
   sex?: string;
   organs: OrganOverview[];
   selectedOrgan: string | null;
   onSelectOrgan: (organ: string) => void;
+  /** Optional: called when the user clicks empty space in the viewer to clear the selection. */
+  onDeselect?: () => void;
 }) {
   const [hoveredOrgan, setHoveredOrgan] = useState<OrganKey | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
@@ -147,14 +152,18 @@ export default function DigitalTwin({
 
   return (
     <div className="relative h-[520px] w-full overflow-hidden rounded-2xl bg-gradient-to-b from-twin-panel to-black/40">
-      <Canvas shadows dpr={[1, 2]} camera={{ position: [1.8, 1.5, 3.2], fov: 42 }}>
+      <Canvas
+        shadows
+        dpr={[1, 2]}
+        camera={{ position: [1.8, 1.5, 3.2], fov: 42 }}
+        onPointerMissed={() => onDeselect?.()}
+      >
         <ambientLight intensity={0.55} />
         <directionalLight position={[3, 5, 2]} intensity={1.15} castShadow />
         <directionalLight position={[-3, 1.5, -2]} intensity={0.3} />
         <AnatomyErrorBoundary fallback={<ModelMissingFallback />}>
           <Suspense fallback={<Loader />}>
-            <AnatomyModel
-              url={MODEL_URL}
+            <CompositeAnatomyModel
               hoveredOrgan={hoveredOrgan}
               selectedOrgan={selectedOrgan as OrganKey | null}
               riskByOrgan={riskByOrgan}

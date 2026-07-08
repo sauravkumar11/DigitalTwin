@@ -15,11 +15,10 @@ import {
 } from "@/lib/api";
 import {
   getPendingRequests,
-  approveAccessRequest,
-  rejectAccessRequest,
+  approveRequest as approveAccessRequest,
+  rejectRequest as rejectAccessRequest,
   type AccessRequest,
 } from "@/lib/api";
-import OrganPanel from "@/components/OrganPanel";
 import PatientSummary from "@/components/dashboard/PatientSummary";
 import VitalsGrid from "@/components/dashboard/VitalsGrid";
 import AIInsightCard from "@/components/dashboard/AIInsightCard";
@@ -201,6 +200,10 @@ async function loadRequests() {
             organs={organs}
             selectedOrgan={selected}
             onSelectOrgan={handleSelectOrgan}
+            onDeselect={() => {
+              setSelected(null);
+              setInsight(null);
+            }}
         />
 
     </div>
@@ -208,6 +211,8 @@ async function loadRequests() {
     <div className="space-y-6">
 
         <AIInsightCard
+            selected={selected}
+            insight={insight}
             loading={insightLoading}
         />
 
@@ -219,14 +224,6 @@ async function loadRequests() {
 
 </div>
 
-<div className="mt-6">
-
-    <OrganPanel
-        insight={insight}
-        loading={insightLoading}
-    />
-
-</div>
       </>)}
 
       {tab === "medications" && (
